@@ -1,0 +1,28 @@
+<RCC>
+    <qresource prefix="/">
+        <file>imgs/bg.jpg</file>
+        <file>imgs/head_bg.png</file>
+        <file>imgs/line(1).png</file>
+        <file>icons/icon1.png</file>
+        <file>icons/icon2.png</file>
+        <file>icons/icon3.png</file>
+        <file>icons/icon4.png</file>
+        <file>icons/anniu.png</file>
+        <file>icons/anniu1.png</file>
+        <file>data/config.csv</file>
+        <file>icons/fuwuqi.png</file>
+        <file>icons/fuwuqi0.png</file>
+        <file>imgs/chun.png</file>
+        <file>icons/icons1-1.png</file>
+        <file>icons/icons1-2.png</file>
+        <file>icons/icons1-3.png</file>
+        <file>data/tishi.txt</file>
+        <file>imgs/pic1.png</file>
+        <file>imgs/map.png</file>
+        <file>imgs/log.png</file>
+        <file>fonts/FZMoFHJW.TTF</file>
+        <file>imgs/bg_title.png</file>
+        <file>imgs/aust.png</file>
+        <file>imgs/logo.png</file>
+    </qresource>
+</RCC>
