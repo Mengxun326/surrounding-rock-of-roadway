@@ -50,3 +50,4 @@ ui->label_2_4->setStyleSheet(";border-image:url(:/icons/fuwuqi.png);");
 - ✅ 保持视觉一致性
 
 **label_2_4现在会一直显示蓝色图标了！** 🎉
+
