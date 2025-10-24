@@ -1,0 +1,17 @@
+2025-07-20 17:28:19 [debug]:This is a debug message
+2025-07-20 17:28:19 [info]:This is an info message
+2025-07-20 17:28:19 [warning][unknown]:This is a warning message
+2025-07-20 17:28:19 [critical]:This is a critical message
+2025-07-20 17:28:25 [warning][unknown]:QAbstractSocket::connectToHost() called when already looking up or connecting/connected to "127.0.0.1"
+2025-07-20 17:28:29 [warning][unknown]:QAbstractSocket::connectToHost() called when already looking up or connecting/connected to "127.0.0.1"
+2025-07-20 17:28:31 [warning][unknown]:QAbstractSocket::connectToHost() called when already looking up or connecting/connected to "127.0.0.1"
+2025-07-20 17:28:37 [warning][unknown]:QAbstractSocket::connectToHost() called when already looking up or connecting/connected to "127.0.0.1"
+2025-07-20 17:28:40 [warning][unknown]:QAbstractSocket::connectToHost() called when already looking up or connecting/connected to "127.0.0.1"
+2025-07-20 17:28:45 [debug]:This is a debug message
+2025-07-20 17:28:45 [info]:This is an info message
+2025-07-20 17:28:45 [warning][unknown]:This is a warning message
+2025-07-20 17:28:45 [critical]:This is a critical message
+2025-07-20 17:28:51 [warning][unknown]:QAbstractSocket::connectToHost() called when already looking up or connecting/connected to "127.0.0.1"
+2025-07-20 17:28:55 [warning][unknown]:QAbstractSocket::connectToHost() called when already looking up or connecting/connected to "127.0.0.1"
+2025-07-20 17:28:57 [warning][unknown]:QAbstractSocket::connectToHost() called when already looking up or connecting/connected to "127.0.0.1"
+2025-07-20 17:29:03 [warning][unknown]:QAbstractSocket::connectToHost() called when already looking up or connecting/connected to "127.0.0.1"

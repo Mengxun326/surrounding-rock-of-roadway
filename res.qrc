@@ -19,10 +19,10 @@
         <file>data/tishi.txt</file>
         <file>imgs/pic1.png</file>
         <file>imgs/map.png</file>
-        <file>imgs/log.png</file>
         <file>fonts/FZMoFHJW.TTF</file>
         <file>imgs/bg_title.png</file>
         <file>imgs/aust.png</file>
         <file>imgs/logo.png</file>
+        <file>imgs/map1.jpg</file>
     </qresource>
 </RCC>

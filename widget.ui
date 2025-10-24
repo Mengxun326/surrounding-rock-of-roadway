@@ -330,7 +330,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:28pt; color:#00ffff;&quot;&gt;矿山神经-基于光纤传感技术的巷道围岩监测平台&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:28pt; color:#00ffff;&quot;&gt;纤毫毕现—隧道光频域智能监测系统&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="QLabel" name="TieTle_img_label">
@@ -771,7 +771,7 @@
      <x>10</x>
      <y>630</y>
      <width>281</width>
-     <height>101</height>
+     <height>102</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout_SJQX">
@@ -801,7 +801,7 @@
      <widget class="QComboBox" name="comboBox">
       <property name="minimumSize">
        <size>
-        <width>115</width>
+        <width>151</width>
         <height>35</height>
        </size>
       </property>
@@ -1312,7 +1312,7 @@ QScrollArea QScrollBar::add-page:horizontal, QScrollArea QScrollBar::sub-page:ho
          <x>0</x>
          <y>0</y>
          <width>279</width>
-         <height>230</height>
+         <height>226</height>
         </rect>
        </property>
       </widget>
@@ -1320,7 +1320,7 @@ QScrollArea QScrollBar::add-page:horizontal, QScrollArea QScrollBar::sub-page:ho
     </item>
    </layout>
   </widget>
-  <widget class="QLabel" name="map_label">
+  <widget class="QWidget" name="chartContainer">
    <property name="geometry">
     <rect>
      <x>300</x>
@@ -1329,18 +1329,15 @@ QScrollArea QScrollBar::add-page:horizontal, QScrollArea QScrollBar::sub-page:ho
      <height>701</height>
     </rect>
    </property>
-   <property name="text">
-    <string/>
-   </property>
-   <property name="scaledContents">
-    <bool>true</bool>
+   <property name="styleSheet">
+    <string>background-color: #1a1a1a; border: 2px solid #333333; border-radius: 8px;</string>
    </property>
   </widget>
   <widget class="QLabel" name="titlebg_label">
    <property name="geometry">
     <rect>
      <x>0</x>
-     <y>0</y>
+     <y>-10</y>
      <width>1501</width>
      <height>101</height>
     </rect>
@@ -1381,7 +1378,7 @@ QScrollArea QScrollBar::add-page:horizontal, QScrollArea QScrollBar::sub-page:ho
      <x>0</x>
      <y>10</y>
      <width>231</width>
-     <height>106</height>
+     <height>109</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout_2">
@@ -1468,7 +1465,7 @@ QScrollArea QScrollBar::add-page:horizontal, QScrollArea QScrollBar::sub-page:ho
   <zorder>gridLayoutWidget_3</zorder>
   <zorder>gridLayoutWidget_4</zorder>
   <zorder>gridLayoutWidget_5</zorder>
-  <zorder>map_label</zorder>
+  <zorder>chartContainer</zorder>
   <zorder>titlebg_label</zorder>
   <zorder>gridLayoutWidget_6</zorder>
   <zorder>time</zorder>

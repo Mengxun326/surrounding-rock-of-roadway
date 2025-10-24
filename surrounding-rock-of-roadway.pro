@@ -18,6 +18,8 @@ SOURCES += \
     sensordesign.cpp \
     setup.cpp \
     tishi.cpp \
+    tcpserver.cpp \
+    udpreceiver.cpp \
     variate.cpp \
     warning.cpp \
     widget.cpp
@@ -31,6 +33,8 @@ HEADERS += \
     sensordesign.h \
     setup.h \
     tishi.h \
+    tcpserver.h \
+    udpreceiver.h \
     variate.h \
     warning.h \
     widget.h

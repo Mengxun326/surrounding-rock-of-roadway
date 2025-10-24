@@ -1,11 +1,13 @@
 #include "widget.h"
 #include "ui_widget.h"
 
-bool TCPflag = false;
+// 旧的TCPflag变量已移除，现在使用新的TCP服务端
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
+    , m_tcpServer(nullptr)
+    , m_udpReceiver(nullptr)
 {
     ui->setupUi(this);
     //插入背景图
@@ -94,52 +96,20 @@ Widget::Widget(QWidget *parent)
 
     //2.系统状态
     //设置初始状态
-    ui->label_2_4->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);");
+    ui->label_2_4->setStyleSheet(";border-image:url(:/icons/fuwuqi.png);");
     ui->label_2_7->setStyleSheet("color:rgb(255,0,0);");
     ui->label_2_7->setText("连接失败");
-    ui->label_2_5->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);");
+    // ui->label_2_5->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);"); // 注释掉，避免覆盖测试设置
     ui->label_2_8->setStyleSheet("color:rgb(255,0,0);");
     ui->label_2_8->setText("未知");
     ui->label_2_6->setStyleSheet("border-image:url(:/icons/fuwuqi0.png);");
     ui->label_2_9->setStyleSheet("color:rgb(255,0,0);");
     ui->label_2_9->setText("未知");
-    //连接TCP服务端
-    socket = new QTcpSocket;//创建socket对象
-    connectTCP();
-    //链接服务器成功，socket对象会发出信号
-
-    if(!TCPflag)
-    {
-        Tcptimer = new QTimer(this);
-        connect(Tcptimer, &QTimer::timeout,[this](){
-            QString IP = ConfigData[7][1];
-            QString port = TcpPort;
-            socket->connectToHost(QHostAddress(IP),port.toShort());});
-        Tcptimer->start(3000); // 10 秒 = 10000 毫秒
-    }
-    connect(socket,&QTcpSocket::connected,[this](){
-        TCPflag = true;
-        ui->label_2_4->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
-        ui->label_2_7->setStyleSheet("color:rgb(102,178,255);");
-        ui->label_2_7->setText("连接成功");
-    });
-    //断开链接，socket对象会发出信号
-    connect(socket,&QTcpSocket::disconnected,[this]{
-        TCPflag = false;
-        ui->label_2_4->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);");
-        ui->label_2_7->setStyleSheet("color:rgb(255,0,0);");
-        ui->label_2_7->setText("连接失败");
-        ui->label_2_5->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);");
-        ui->label_2_8->setStyleSheet("color:rgb(255,0,0);");
-        ui->label_2_8->setText("未知");
-        ui->label_2_6->setStyleSheet("border-image:url(:/icons/fuwuqi0.png);");
-        ui->label_2_9->setStyleSheet("color:rgb(255,0,0);");
-        ui->label_2_9->setText("未知");
-        QMessageBox::warning(this,"连接提示","连接异常，网络断开");
-        connectTCP();
-    });
-    //服务端收到客户端发送的信息,socket发出readyread信号
-    connect(socket, &QTcpSocket::readyRead,this,&Widget::clientTnfoSlot);
+    // 旧的TCP客户端连接代码已移除，现在使用新的TCP服务端
+    // 设置初始状态
+    ui->label_2_4->setStyleSheet(";border-image:url(:/icons/fuwuqi.png);");
+    ui->label_2_7->setStyleSheet("color:rgb(255,0,0);");
+    ui->label_2_7->setText("等待连接");
 
     //3.日志
     ui->scrollArea->setStyleSheet("QScrollArea { background - color: #E0ECFF; border: 1px solid #80B3FF; border - radius: 5px; } QScrollArea::corner { background - color: #E0ECFF; } QScrollBar:vertical { width: 10px; background - color: #E0ECFF; margin: 0px 0px 0px 0px; } QScrollBar::handle:vertical { background - color: #80B3FF; min - height: 20px; border - radius: 5px; } QScrollBar::handle:vertical:hover { background - color: #4093FF; } QScrollBar::add - line:vertical { height: 0px; width: 0px; sub - control - position: bottom; sub - control - origin: margin; } QScrollBar::sub - line:vertical { height: 0px; width: 0px; sub - control - position: top; sub - control - origin: margin; } QScrollBar:horizontal { height: 10px; background - color: #E0ECFF; margin: 0px 0px 0px 0px; } QScrollBar::handle:horizontal { background - color: #80B3FF; min - width: 20px; border - radius: 5px; } QScrollBar::handle:horizontal:hover { background - color: #4093FF; } QScrollBar::add - line:horizontal { width: 0px; height: 0px; sub - control - position: right; sub - control - origin: margin; } QScrollBar::sub - line:horizontal { width: 0px; height: 0px; sub - control - position: left; sub - control - origin: margin; }");
@@ -162,9 +132,8 @@ Widget::Widget(QWidget *parent)
     QPixmap pic1(":/imgs/pic1.png");
     ui->pic1_label->setPixmap(pic1);
 
-    //4.map
-    QPixmap map(":/imgs/map.png");
-    ui->map_label->setPixmap(map);
+    //4.初始化实时数据图表
+    initRealtimeChart();
 
     //5.显示折线图
     on_comboBox_activated(0);
@@ -191,25 +160,50 @@ Widget::Widget(QWidget *parent)
     QTimer *timetimer = new QTimer(this);
     connect(timetimer, &QTimer::timeout, this, &Widget::updateTime);
     timetimer->start(1000); // 每秒更新一次时间
+    
+    // 初始化通信服务
+    initCommunicationServices();
 }
 
 Widget::~Widget()
 {
+    if (m_tcpServer) {
+        m_tcpServer->stopServer();
+        delete m_tcpServer;
+    }
+    if (m_udpReceiver) {
+        m_udpReceiver->stopReceiver();
+        delete m_udpReceiver;
+    }
     delete ui;
 }
 
-void Widget::connectTCP()
+// 窗口关闭事件处理
+void Widget::closeEvent(QCloseEvent *event)
 {
-    if(!TCPflag)
-    {
-        Tcptimer = new QTimer(this);
-        connect(Tcptimer, &QTimer::timeout,[this](){
-            QString IP = ConfigData[7][1];
-            QString port = TcpPort;
-            socket->connectToHost(QHostAddress(IP),port.toShort());});
-        Tcptimer->start(10000); // 10 秒 = 10000 毫秒
+    qInfo() << "程序正在关闭...";
+    
+    // 停止通信服务
+    if (m_tcpServer) {
+        m_tcpServer->stopServer();
     }
+    if (m_udpReceiver) {
+        m_udpReceiver->stopReceiver();
+    }
+    
+    // 停止定时器
+    if (m_dataUpdateTimer) {
+        m_dataUpdateTimer->stop();
+    }
+    if (timer) {
+        timer->stop();
+    }
+    
+    qInfo() << "程序已正常关闭";
+    event->accept();
 }
+
+// 旧的connectTCP函数已移除，现在使用新的TCP服务端
 
 void Widget::ReadConfigFile(const QString& ConfigFileName)
 {
@@ -257,22 +251,7 @@ void Widget::ReadConfigFile(const QString& ConfigFileName)
     }
 }
 
-void Widget::clientTnfoSlot()
-{
-    //获取信号的发出者
-    QTcpSocket *s = (QTcpSocket * )sender();
-    QStringList data = QString(s->readAll()).split(",");
-    if(!QString::compare("1",data[0])){
-        ui->label_2_5->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
-        ui->label_2_8->setStyleSheet("color:rgb(102,178,255);");
-        ui->label_2_8->setText("正常");
-    }
-    if(!QString::compare("1",data[1])){
-        ui->label_2_6->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
-        ui->label_2_9->setStyleSheet("color:rgb(102,178,255);");
-        ui->label_2_9->setText("正常");
-    }
-}
+// 旧的clientTnfoSlot函数已移除，现在使用新的TCP服务端数据接收处理
 
 //1.基本信息管理
 void Widget::on_pushButton_1_clicked()
@@ -321,6 +300,523 @@ void Widget::on_pushButton_6_clicked()
     SensorDesign *c = new SensorDesign();
     c->setWindowModality(Qt::ApplicationModal);
     c->show();
+}
+
+// 初始化通信服务
+void Widget::initCommunicationServices()
+{
+    // 初始化TCP服务端
+    m_tcpServer = new TcpServer(this);
+    connect(m_tcpServer, &TcpServer::dataReceived, this, &Widget::onTcpDataReceived, Qt::QueuedConnection);
+    connect(m_tcpServer, &TcpServer::clientConnected, this, &Widget::onTcpClientConnected, Qt::QueuedConnection);
+    connect(m_tcpServer, &TcpServer::clientDisconnected, this, &Widget::onTcpClientDisconnected, Qt::QueuedConnection);
+    connect(m_tcpServer, &TcpServer::connectionError, this, &Widget::onTcpConnectionError, Qt::QueuedConnection);
+    
+    // 启动TCP服务端
+    if (m_tcpServer->startServer(5555)) {
+        qInfo() << "TCP服务端启动成功，监听端口5555";
+    } else {
+        qCritical() << "TCP服务端启动失败";
+    }
+    
+    // 初始化UDP接收器
+    m_udpReceiver = new UdpReceiver(this);
+    connect(m_udpReceiver, &UdpReceiver::dataReceived, this, &Widget::onUdpDataReceived);
+    connect(m_udpReceiver, &UdpReceiver::vibrationDataReceived, this, &Widget::onVibrationDataReceived);
+    connect(m_udpReceiver, &UdpReceiver::deviceConnected, this, &Widget::onUdpDeviceConnected);
+    connect(m_udpReceiver, &UdpReceiver::deviceDisconnected, this, &Widget::onUdpDeviceDisconnected);
+    
+    // 启动UDP接收器
+    if (m_udpReceiver->startReceiver(6666)) {
+        qInfo() << "UDP接收器启动成功，监听端口6666";
+    } else {
+        qCritical() << "UDP接收器启动失败";
+    }
+    
+    // 初始化数据更新定时器
+    
+    // 不进行模拟设备连接测试，等待真实设备连接
+    qDebug() << "通信服务初始化完成，等待真实设备连接";
+    m_dataUpdateTimer = new QTimer(this);
+    connect(m_dataUpdateTimer, &QTimer::timeout, this, &Widget::updateRealtimeDisplay);
+    m_dataUpdateTimer->start(1000); // 每秒更新一次显示
+}
+
+// TCP数据接收处理
+void Widget::onTcpDataReceived(const QJsonObject &data)
+{
+    qDebug() << "收到TCP数据:" << data;
+    
+    // 更新系统状态显示（只有在真实TCP连接时才更新）
+    ui->label_2_5->setStyleSheet("border-image:url(:/icons/fuwuqi.png); background:transparent;");
+    ui->label_2_5->update();
+    ui->label_2_8->setStyleSheet("color:rgb(102,178,255);");
+    ui->label_2_8->setText("数据接收中");
+    // 强制刷新UI
+    ui->label_2_5->repaint();
+    ui->label_2_8->repaint();
+    // 延迟再次设置，确保样式生效
+    QTimer::singleShot(100, [this]() {
+        ui->label_2_5->setStyleSheet("border-image:url(:/icons/fuwuqi.png); background:transparent;");
+        ui->label_2_5->update();
+    });
+    qDebug() << "UI状态已更新为数据接收中";
+    
+    // 处理传感器数据
+    if (data.contains("body")) {
+        QJsonObject body = data["body"].toObject();
+        if (body.contains("PARAM")) {
+            QJsonObject param = body["PARAM"].toObject();
+            
+            // 更新实时数据用于图表显示
+            QDateTime currentTime = QDateTime::currentDateTime();
+            
+            // 处理应变数据
+            if (param.contains("Strain")) {
+                QJsonArray strainArray = param["Strain"].toArray();
+                for (const QJsonValue &value : strainArray) {
+                    if (value.isObject()) {
+                        QJsonObject sensor = value.toObject();
+                        double val = sensor["Val"].toString().toDouble();
+                        // 应变数据标记为正数
+                        m_realtimeData.append(qMakePair(currentTime, val));
+                        qDebug() << "应变数据:" << val;
+                    }
+                }
+            }
+            
+            // 处理位移数据
+            if (param.contains("Move")) {
+                QJsonArray moveArray = param["Move"].toArray();
+                for (const QJsonValue &value : moveArray) {
+                    if (value.isObject()) {
+                        QJsonObject sensor = value.toObject();
+                        double val = sensor["Val"].toString().toDouble();
+                        // 位移数据标记为负数（-1到-10范围）
+                        m_realtimeData.append(qMakePair(currentTime, -val));
+                        qDebug() << "位移数据:" << val;
+                    }
+                }
+            }
+            
+            // 处理温度数据
+            if (param.contains("Temp")) {
+                QJsonArray tempArray = param["Temp"].toArray();
+                for (const QJsonValue &value : tempArray) {
+                    if (value.isObject()) {
+                        QJsonObject sensor = value.toObject();
+                        double val = sensor["Val"].toString().toDouble();
+                        // 温度数据标记为更小的负数（-10以下）
+                        m_realtimeData.append(qMakePair(currentTime, -val - 10));
+                        qDebug() << "温度数据:" << val;
+                    }
+                }
+            }
+        }
+    }
+    
+    // 立即更新图表显示
+    qDebug() << "准备更新图表显示，当前数据点数:" << m_realtimeData.size();
+    updateRealtimeDisplay();
+    
+    // 强制刷新UI
+    this->update();
+    ui->chartContainer->update();
+    qDebug() << "UI刷新完成";
+}
+
+// TCP客户端连接处理
+void Widget::onTcpClientConnected()
+{
+    qInfo() << "光纤光栅分析软件已连接";
+    // 更新服务器状态图标和文字
+    ui->label_2_5->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
+    ui->label_2_8->setStyleSheet("color:rgb(102,178,255);");
+    ui->label_2_8->setText("已连接");
+    // 更新传感器状态图标和文字
+    ui->label_2_6->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
+    ui->label_2_9->setStyleSheet("color:rgb(102,178,255);");
+    ui->label_2_9->setText("已连接");
+    // 更新设备状态图标和文字
+    ui->label_2_7->setStyleSheet("color:rgb(102,178,255);");
+    ui->label_2_7->setText("已连接");
+}
+
+// TCP客户端断开处理
+void Widget::onTcpClientDisconnected()
+{
+    qInfo() << "光纤光栅分析软件已断开";
+    // 更新服务器状态图标和文字
+    ui->label_2_5->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);");
+    ui->label_2_8->setStyleSheet("color:rgb(255,0,0);");
+    ui->label_2_8->setText("已断开");
+    // 更新传感器状态图标和文字
+    ui->label_2_6->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);");
+    ui->label_2_9->setStyleSheet("color:rgb(255,0,0);");
+    ui->label_2_9->setText("已断开");
+    // 更新设备状态图标和文字
+    ui->label_2_7->setStyleSheet("color:rgb(255,0,0);");
+    ui->label_2_7->setText("已断开");
+}
+
+// TCP连接错误处理
+void Widget::onTcpConnectionError(const QString &error)
+{
+    qCritical() << "TCP连接错误:" << error;
+    ui->label_2_5->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);");
+    ui->label_2_8->setStyleSheet("color:rgb(255,0,0);");
+    ui->label_2_8->setText("连接错误");
+}
+
+// UDP数据接收处理
+void Widget::onUdpDataReceived(const QByteArray &data)
+{
+    qDebug() << "收到UDP数据，大小:" << data.size();
+    
+    // 只更新设备状态为"数据接收中"，不覆盖连接状态
+    ui->label_2_7->setStyleSheet("color:rgb(102,178,255);");
+    ui->label_2_7->setText("数据接收中");
+}
+
+// UDP设备连接处理
+void Widget::onUdpDeviceConnected()
+{
+    qInfo() << "UDP设备已连接";
+    qDebug() << "开始更新服务器状态图标";
+    qDebug() << "设置前服务器状态图标样式:" << ui->label_2_5->styleSheet();
+    // 更新服务器状态图标和文字（UDP连接也意味着服务器工作正常）
+    // 先清除所有样式和文本
+    ui->label_2_5->setStyleSheet("");
+    ui->label_2_5->setText("");  // 清除HTML文本
+    ui->label_2_5->update();
+    ui->label_2_5->repaint();
+    
+    // 尝试多种方法设置图标
+    ui->label_2_5->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
+    qDebug() << "使用border-image设置蓝色图标";
+    
+    // 备用方法：使用QPixmap
+    QPixmap blueIcon(":/icons/fuwuqi.png");
+    if (!blueIcon.isNull()) {
+        ui->label_2_5->setPixmap(blueIcon);
+        qDebug() << "同时使用QPixmap设置蓝色图标";
+    }
+    
+    // 强制设置样式
+    ui->label_2_5->setStyleSheet("border-image:url(:/icons/fuwuqi.png); background:transparent;");
+    qDebug() << "强制设置样式";
+    ui->label_2_5->update();
+    ui->label_2_8->setStyleSheet("color:rgb(102,178,255);");
+    ui->label_2_8->setText("已连接");
+    qDebug() << "设置后服务器状态图标样式:" << ui->label_2_5->styleSheet();
+    qDebug() << "设置后服务器状态文字:" << ui->label_2_8->text();
+    qDebug() << "服务器状态图标已设置为蓝色";
+    
+    // 强制刷新UI - 多种方法
+    ui->label_2_5->repaint();
+    ui->label_2_5->update();
+    ui->label_2_8->repaint();
+    ui->label_2_8->update();
+    
+    // 延迟检查最终状态
+    QTimer::singleShot(1000, [this]() {
+        qDebug() << "1秒后检查最终状态:";
+        qDebug() << "服务器状态图标样式:" << ui->label_2_5->styleSheet();
+        qDebug() << "服务器状态文字:" << ui->label_2_8->text();
+    });
+    
+    // 延迟多次设置，确保样式生效
+    QTimer::singleShot(50, [this]() {
+        qDebug() << "第一次延迟设置服务器状态图标";
+        ui->label_2_5->setText("");  // 清除HTML文本
+        ui->label_2_5->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
+        ui->label_2_5->update();
+        ui->label_2_5->repaint();
+    });
+    
+    QTimer::singleShot(200, [this]() {
+        qDebug() << "第二次延迟设置服务器状态图标";
+        ui->label_2_5->setText("");  // 清除HTML文本
+        ui->label_2_5->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
+        ui->label_2_5->update();
+        ui->label_2_5->repaint();
+    });
+    
+    QTimer::singleShot(500, [this]() {
+        qDebug() << "第三次延迟设置服务器状态图标";
+        ui->label_2_5->setText("");  // 清除HTML文本
+        ui->label_2_5->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
+        ui->label_2_5->update();
+        ui->label_2_5->repaint();
+        qDebug() << "最终服务器状态图标样式:" << ui->label_2_5->styleSheet();
+    });
+    // 更新传感器状态图标和文字
+    ui->label_2_6->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
+    ui->label_2_9->setStyleSheet("color:rgb(102,178,255);");
+    ui->label_2_9->setText("已连接");
+    // 更新设备状态图标和文字
+    ui->label_2_7->setStyleSheet("color:rgb(102,178,255);");
+    ui->label_2_7->setText("已连接");
+}
+
+// UDP设备断开处理
+void Widget::onUdpDeviceDisconnected()
+{
+    qInfo() << "UDP设备已断开";
+    // 更新服务器状态图标和文字
+    ui->label_2_5->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);");
+    ui->label_2_8->setStyleSheet("color:rgb(255,0,0);");
+    ui->label_2_8->setText("已断开");
+    // 更新传感器状态图标和文字
+    ui->label_2_6->setStyleSheet(";border-image:url(:/icons/fuwuqi0.png);");
+    ui->label_2_9->setStyleSheet("color:rgb(255,0,0);");
+    ui->label_2_9->setText("已断开");
+    // 更新设备状态图标和文字
+    ui->label_2_7->setStyleSheet("color:rgb(255,0,0);");
+    ui->label_2_7->setText("已断开");
+}
+
+// 振动数据接收处理
+void Widget::onVibrationDataReceived(int channel, int sensorId, double wavelength, double frequency)
+{
+    qDebug() << QString("振动数据 - 通道:%1 ID:%2 波长:%3 频率:%4")
+                .arg(channel).arg(sensorId).arg(wavelength).arg(frequency);
+    
+    // 更新系统状态显示
+    ui->label_2_6->setStyleSheet("border-image:url(:/icons/fuwuqi.png);");
+    ui->label_2_9->setStyleSheet("color:rgb(102,178,255);");
+    ui->label_2_9->setText("振动数据接收中");
+}
+
+// 初始化实时图表
+void Widget::initRealtimeChart()
+{
+    // 创建图表
+    m_realtimeChart = new QChart();
+    m_realtimeChart->setTitle("实时传感器数据");
+    m_realtimeChart->setTitleFont(QFont("Arial", 14, QFont::Bold));
+    m_realtimeChart->setTitleBrush(QBrush(QColor(255, 255, 255)));
+    
+    // 设置图表主题和背景
+    m_realtimeChart->setTheme(QChart::ChartThemeDark);
+    m_realtimeChart->setBackgroundBrush(QBrush(QColor(26, 26, 26)));
+    m_realtimeChart->setPlotAreaBackgroundBrush(QBrush(QColor(40, 40, 40)));
+    m_realtimeChart->setPlotAreaBackgroundVisible(true);
+    
+    // 创建数据系列
+    m_strainSeries = new QLineSeries();
+    m_strainSeries->setName("应变数据");
+    m_strainSeries->setColor(QColor(255, 0, 0));  // 纯红色
+    m_strainSeries->setPen(QPen(QColor(255, 0, 0), 3));  // 更粗的线条
+    
+    m_moveSeries = new QLineSeries();
+    m_moveSeries->setName("位移数据");
+    m_moveSeries->setColor(QColor(0, 255, 0));  // 纯绿色
+    m_moveSeries->setPen(QPen(QColor(0, 255, 0), 3));  // 更粗的线条
+    
+    m_tempSeries = new QLineSeries();
+    m_tempSeries->setName("温度数据");
+    m_tempSeries->setColor(QColor(0, 0, 255));  // 纯蓝色
+    m_tempSeries->setPen(QPen(QColor(0, 0, 255), 3));  // 更粗的线条
+    
+    // 添加系列到图表
+    m_realtimeChart->addSeries(m_strainSeries);
+    m_realtimeChart->addSeries(m_moveSeries);
+    m_realtimeChart->addSeries(m_tempSeries);
+    
+    // 创建时间轴 - 使用QValueAxis而不是QDateTimeAxis
+    m_timeAxis = new QValueAxis();
+    m_timeAxis->setTitleText("时间(秒)");
+    m_timeAxis->setTitleBrush(QBrush(QColor(255, 255, 255)));
+    m_timeAxis->setLabelsBrush(QBrush(QColor(255, 255, 255)));
+    m_timeAxis->setGridLineColor(QColor(100, 100, 100));
+    m_timeAxis->setTickCount(10);
+    
+    qDebug() << "时间轴类型:" << m_timeAxis->type();
+    
+    // 创建数值轴
+    m_axisY = new QValueAxis();
+    m_axisY->setTitleText("数值");
+    m_axisY->setTitleBrush(QBrush(QColor(255, 255, 255)));
+    m_axisY->setLabelsBrush(QBrush(QColor(255, 255, 255)));
+    m_axisY->setGridLineColor(QColor(100, 100, 100));
+    m_axisY->setRange(-60, 60);  // 设置应变数据的Y轴范围
+    
+    // 设置轴
+    m_realtimeChart->addAxis(m_timeAxis, Qt::AlignBottom);
+    m_realtimeChart->addAxis(m_axisY, Qt::AlignLeft);
+    
+    // 系列已经在上面添加到图表了，这里不需要重复添加
+    
+    // 只附加一次轴，避免重复附加
+    m_strainSeries->attachAxis(m_timeAxis);
+    m_strainSeries->attachAxis(m_axisY);
+    m_moveSeries->attachAxis(m_timeAxis);
+    m_moveSeries->attachAxis(m_axisY);
+    m_tempSeries->attachAxis(m_timeAxis);
+    m_tempSeries->attachAxis(m_axisY);
+    
+    qDebug() << "实时图表轴设置完成";
+    
+    // 创建图表视图
+    m_chartView = new QChartView(m_realtimeChart);
+    m_chartView->setRenderHint(QPainter::Antialiasing);
+    m_chartView->setRenderHint(QPainter::SmoothPixmapTransform);
+    m_chartView->setBackgroundBrush(QBrush(QColor(26, 26, 26)));
+    m_chartView->setMinimumSize(600, 400);
+    m_chartView->setMaximumSize(1000, 800);
+    
+    // 确保图表被正确设置到视图中
+    m_chartView->setChart(m_realtimeChart);
+    
+    // 将图表视图添加到容器中
+    QVBoxLayout *chartLayout = new QVBoxLayout(ui->chartContainer);
+    chartLayout->addWidget(m_chartView);
+    chartLayout->setContentsMargins(5, 5, 5, 5);
+    
+    // 确保图表视图和其容器可见
+    m_chartView->setVisible(true);
+    m_chartView->show();
+    ui->chartContainer->setVisible(true);
+    ui->chartContainer->show();
+    
+    // 强制更新布局
+    ui->chartContainer->update();
+    m_chartView->update();
+    
+    // 检查父级容器的可见性
+    QWidget *parent = ui->chartContainer->parentWidget();
+    while (parent) {
+        qDebug() << "父级容器:" << parent->objectName() << "可见性:" << parent->isVisible();
+        if (parent->objectName() == "Widget") {
+            // 强制设置主窗口可见
+            parent->setVisible(true);
+            parent->show();
+            qDebug() << "已强制设置主窗口可见";
+        }
+        parent = parent->parentWidget();
+    }
+    
+    qDebug() << "图表视图已创建并添加到容器，尺寸:" << m_chartView->size();
+    qDebug() << "图表容器尺寸:" << ui->chartContainer->size();
+    qDebug() << "图表视图可见性:" << m_chartView->isVisible();
+    qDebug() << "图表容器可见性:" << ui->chartContainer->isVisible();
+    
+    // 设置图例
+    m_realtimeChart->legend()->setVisible(true);
+    m_realtimeChart->legend()->setAlignment(Qt::AlignTop);
+    m_realtimeChart->legend()->setLabelColor(QColor(255, 255, 255));
+    m_realtimeChart->legend()->setBackgroundVisible(false);
+    
+    // 记录开始时间
+    m_startTime = QDateTime::currentDateTime();
+    
+    // 不添加测试数据，等待真实数据
+    qDebug() << "实时图表初始化完成，等待真实数据";
+}
+
+// 更新实时显示
+void Widget::updateRealtimeDisplay()
+{
+    if (!m_realtimeChart || !m_strainSeries || !m_moveSeries || !m_tempSeries) {
+        return;
+    }
+    
+    // 限制数据量，只保留最近100个数据点
+    if (m_realtimeData.size() > 100) {
+        m_realtimeData = m_realtimeData.mid(m_realtimeData.size() - 100);
+    }
+    
+    // 更新图表显示
+    if (!m_realtimeData.isEmpty()) {
+        qDebug() << "开始更新图表显示，数据点数:" << m_realtimeData.size();
+        
+        // 清空现有数据
+        m_strainSeries->clear();
+        m_moveSeries->clear();
+        m_tempSeries->clear();
+        
+        // 添加数据到图表
+        qreal minTimeValue = 0, maxTimeValue = 0;
+        qreal minValue = 0, maxValue = 0;
+        
+        for (int i = 0; i < m_realtimeData.size(); ++i) {
+            const auto &dataPoint = m_realtimeData[i];
+            qreal timeValue = m_startTime.msecsTo(dataPoint.first) / 1000.0; // 转换为秒
+            qreal value = dataPoint.second;
+            
+            // 更新时间范围
+            if (i == 0) {
+                minTimeValue = maxTimeValue = timeValue;
+            } else {
+                minTimeValue = qMin(minTimeValue, timeValue);
+                maxTimeValue = qMax(maxTimeValue, timeValue);
+            }
+            
+            // 更新数值范围
+            minValue = qMin(minValue, value);
+            maxValue = qMax(maxValue, value);
+            
+            // 根据数据值分配到不同的系列
+            if (value > 0) {
+                m_strainSeries->append(timeValue, value);
+                qDebug() << "应变数据添加到图表:" << timeValue << value;
+            } else if (value > -10) {
+                m_moveSeries->append(timeValue, value);
+                qDebug() << "位移数据添加到图表:" << timeValue << value;
+            } else {
+                m_tempSeries->append(timeValue, value);
+                qDebug() << "温度数据添加到图表:" << timeValue << value;
+            }
+        }
+        
+        // 设置时间轴范围（使用秒数）
+        if (m_realtimeData.size() > 1) {
+            m_timeAxis->setRange(minTimeValue, maxTimeValue);
+            qDebug() << "时间轴范围设置为:" << minTimeValue << "到" << maxTimeValue;
+        }
+        
+        // 自动调整Y轴范围，确保应变数据能正确显示
+        if (maxValue > minValue) {
+            // 为应变数据设置合适的Y轴范围
+            qreal range = maxValue - minValue;
+            if (range < 10) range = 10;  // 最小范围
+            m_axisY->setRange(minValue - range * 0.1, maxValue + range * 0.1);
+            qDebug() << "Y轴范围设置为:" << (minValue - range * 0.1) << "到" << (maxValue + range * 0.1);
+        } else {
+            // 如果没有数据变化，使用默认的应变数据范围
+            m_axisY->setRange(-60, 60);
+            qDebug() << "使用默认Y轴范围: -60 到 60";
+        }
+        
+        qDebug() << "实时数据点数:" << m_realtimeData.size() << "最新值:" << m_realtimeData.last().second;
+        
+        // 强制刷新图表
+        m_realtimeChart->update();
+        m_chartView->update();
+        m_chartView->repaint();
+        
+        // 检查系列是否真的附加到图表
+        qDebug() << "图表中的系列数量:" << m_realtimeChart->series().size();
+        for (int i = 0; i < m_realtimeChart->series().size(); ++i) {
+            QAbstractSeries *series = m_realtimeChart->series().at(i);
+            if (QLineSeries *lineSeries = qobject_cast<QLineSeries*>(series)) {
+                qDebug() << "系列" << i << "名称:" << series->name() << "数据点数:" << lineSeries->count();
+            }
+        }
+        
+        qDebug() << "图表刷新完成，系列数据点数 - 应变:" << m_strainSeries->count() 
+                 << "位移:" << m_moveSeries->count() 
+                 << "温度:" << m_tempSeries->count();
+        
+        // 检查图表和视图的可见性
+        qDebug() << "图表可见性 - 图表:" << m_realtimeChart->isVisible() 
+                 << "视图:" << m_chartView->isVisible()
+                 << "容器:" << ui->chartContainer->isVisible();
+        qDebug() << "图表尺寸 - 图表:" << m_realtimeChart->size() 
+                 << "视图:" << m_chartView->size()
+                 << "容器:" << ui->chartContainer->size();
+    }
 }
 
 //日志
@@ -522,4 +1018,16 @@ void Widget::updateTime()
 
     //显示时间的QLabel更新其文本
     ui->time->setText("当前时间："+currentTime);
+}
+
+// 测试设备连接函数
+void Widget::testDeviceConnection()
+{
+    qDebug() << "=== 延迟调用设备连接测试 ===";
+    qDebug() << "当前服务器状态图标样式:" << ui->label_2_5->styleSheet();
+    qDebug() << "当前服务器状态文字:" << ui->label_2_8->text();
+    onUdpDeviceConnected();
+    qDebug() << "调用onUdpDeviceConnected后，服务器状态图标样式:" << ui->label_2_5->styleSheet();
+    qDebug() << "调用onUdpDeviceConnected后，服务器状态文字:" << ui->label_2_8->text();
+    qDebug() << "=== 设备连接测试完成 ===";
 }
